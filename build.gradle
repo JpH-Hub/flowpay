@@ -26,6 +26,23 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('test') {
+// Task padrão: Roda tudo EXCETO o pacote de integração
+tasks.named('test', Test) {
 	useJUnitPlatform()
+	filter {
+		// Exclui todas as classes dentro de qualquer subpacote chamado "integration"
+		excludeTestsMatching "*.integration.*"
+	}
+}
+
+// Nova task: Roda APENAS o pacote de integração
+tasks.register('integrationTest', Test) {
+	description = 'Roda apenas os testes de integração.'
+	group = 'verification'
+
+	useJUnitPlatform()
+	filter {
+		// Inclui apenas as classes dentro do pacote "integration"
+		includeTestsMatching "*.integration.*"
+	}
 }

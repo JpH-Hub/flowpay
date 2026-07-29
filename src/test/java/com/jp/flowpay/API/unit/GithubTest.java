@@ -1,4 +1,4 @@
-package com.jp.flowpay.API;
+package com.jp.flowpay.API.unit;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
