@@ -16,25 +16,15 @@ on:
 permissions:
   contents: read
 
-jobs:
-  build:
-    name: Testes e build
-    runs-on: ubuntu-latest
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: flowpay_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+jobs:
+  unit-tests:
+    name: Testes unitários
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Baixar o código
@@ -52,5 +42,94 @@ jobs:
       - name: Permitir execução do Gradle Wrapper
         run: chmod +x gradlew
 
-      - name: Executar testes e build
-        run: ./gradlew build --refresh-dependencies -Dhttp.agent="GitHubActions-Gradle"
+      - name: Executar testes unitários
+        run: |
+          ./gradlew test \
+            --no-daemon \
+            --stacktrace \
+            -Dhttp.agent="GitHubActions-Gradle"
+
+  integration-tests:
+    name: Testes de integração
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    needs:
+      - unit-tests
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: flowpay_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d flowpay_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/flowpay_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Permitir execução do Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Executar testes de integração
+        run: |
+          ./gradlew integrationTest \
+            --no-daemon \
+            --stacktrace \
+            -Dhttp.agent="GitHubActions-Gradle"
+
+  build:
+    name: Build da aplicação
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    needs:
+      - unit-tests
+      - integration-tests
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Permitir execução do Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Gerar o JAR da aplicação
+        run: |
+          ./gradlew bootJar \
+            -x test \
+            -x integrationTest \
+            --no-daemon \
+            --stacktrace \
+            -Dhttp.agent="GitHubActions-Gradle"
