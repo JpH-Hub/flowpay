@@ -53,4 +53,4 @@ jobs:
         run: chmod +x gradlew
 
       - name: Executar testes e build
-        run: ./gradlew clean build
+        run: ./gradlew build --refresh-dependencies -Dhttp.agent="GitHubActions-Gradle"
