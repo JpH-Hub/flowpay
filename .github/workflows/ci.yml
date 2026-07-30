@@ -1,4 +1,4 @@
-name: CI - Java 21 com Spring Boot
+name: CI/CD - Java 21 com Spring Boot
 
 on:
   push:
@@ -133,3 +133,38 @@ jobs:
             --no-daemon \
             --stacktrace \
             -Dhttp.agent="GitHubActions-Gradle"
+
+  deploy:
+    name: Deploy na Oracle Cloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    needs:
+      - build
+
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Realizar deploy na Oracle
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/FlowPay
+
+            git pull origin main
+
+            docker stop flowpay-api || true
+            docker rm flowpay-api || true
+
+            docker build -t flowpay-api .
+
+            docker run -d \
+              --name flowpay-api \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              flowpay-api
+
+            docker ps
