@@ -25,7 +25,6 @@ public class TicketRepositoryTest {
         List<Ticket> tickets = ticketRepository.findAll();
 
         assertNotNull(tickets, "A lista não deve ser nula");
-        //assertTrue(tickets.isEmpty(), "A lista de tickets deveria estar vazia no início");
-        assertFalse(tickets.isEmpty(), "Forçando o teste a falhar no CI");
+        assertTrue(tickets.isEmpty(), "A lista de tickets deveria estar vazia no início");
     }
 }

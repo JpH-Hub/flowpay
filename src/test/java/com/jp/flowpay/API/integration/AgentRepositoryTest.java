@@ -27,7 +27,7 @@ public class AgentRepositoryTest {
         Optional<Agent> agent = agentRepository.findById(1L);
 
         assertTrue(agent.isPresent(), "O atendente de ID 1 deveria existir no banco");
-        assertEquals("Cartõe", agent.get().getName(), "O nome do atendente deve ser Cartões");
+        assertEquals("Cartões", agent.get().getName(), "O nome do atendente deve ser Cartões");
         assertEquals(1L, agent.get().getTeamId(), "O team_id deve ser 1");
     }
 }
