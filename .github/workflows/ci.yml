@@ -61,19 +61,19 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: flowpay_db
+          POSTGRES_DB: flowpay_test_db
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
-          - 5433:5432
+          - 5434:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d flowpay_db"
+          --health-cmd "pg_isready -U postgres -d flowpay_test_db"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
     env:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/flowpay_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5434/flowpay_test_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
 
