@@ -26,7 +26,7 @@ public class TeamRepositoryTest {
     @Test
     @DisplayName("Deve encontrar o time Cartões ignorando maiúsculas e minúsculas")
     public void testFindByNameIgnoreCase() {
-        Optional<Team> team = teamRepository.findByNameIgnoreCase("fdwqdfwj");
+        Optional<Team> team = teamRepository.findByNameIgnoreCase("cArTõEs");
 
         assertTrue(team.isPresent(), "Deveria encontrar o time no banco de dados");
         assertEquals("Cartões", team.get().getName(), "O nome do time deve bater");
