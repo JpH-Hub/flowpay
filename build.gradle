@@ -43,9 +43,12 @@ tasks.register('integrationTest', Test) {
 	description = 'Roda apenas os testes de integração.'
 	group = 'verification'
 
+	// AVISANDO O GRADLE ONDE FICAM AS CLASSES DE TESTE:
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+
 	useJUnitPlatform()
 	filter {
-		// Inclui apenas as classes dentro do pacote "integration"
 		includeTestsMatching "*.integration.*"
 	}
 }
