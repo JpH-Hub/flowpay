@@ -1,6 +1,7 @@
 package com.jp.flowpay.API.repository;
 
 import com.jp.flowpay.API.entity.Agent;
+import com.jp.flowpay.API.enums.TicketStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -43,9 +44,25 @@ public class AgentRepository {
     }
 
     public int countActiveTicketsByAgentId(Long agentId) {
-        String sql = "SELECT COUNT(*) FROM tickets WHERE agent_id = ? AND status != 'CLOSED'";
+        String sql = "SELECT COUNT(*) FROM tickets WHERE agent_id = ? AND status = ?";
 
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, agentId);
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, agentId, TicketStatus.IN_SERVICE.name());
         return count != null ? count : 0;
+    }
+
+    public Optional<Agent> findAvailableByTeamId(Long teamId) {
+        String sql = """
+            SELECT a.* FROM agents a
+            WHERE a.team_id = ?
+            AND NOT EXISTS (
+                SELECT 1 FROM tickets t
+                WHERE t.agent_id = a.id AND t.status = ?
+            )
+            ORDER BY a.id
+            LIMIT 1
+            """;
+
+        List<Agent> agents = jdbcTemplate.query(sql, agentRowMapper, teamId, TicketStatus.IN_SERVICE.name());
+        return agents.stream().findFirst();
     }
 }
