@@ -3,6 +3,7 @@ package com.jp.flowpay.API.service;
 import com.jp.flowpay.API.entity.Agent;
 import com.jp.flowpay.API.entity.Team;
 import com.jp.flowpay.API.entity.Ticket;
+import com.jp.flowpay.API.enums.TeamEnum;
 import com.jp.flowpay.API.enums.TicketStatus;
 import com.jp.flowpay.API.exception.InvalidTicketStatusException;
 import com.jp.flowpay.API.exception.TeamNotFoundException;
@@ -28,16 +29,19 @@ public class TicketService {
     private final TeamRepository teamRepository;
     private final AgentRepository agentRepository;
     private final TicketRepository ticketRepository;
+    private final TeamRoutingService teamRoutingService;
 
-    public TicketService(TeamRepository teamRepository, AgentRepository agentRepository, TicketRepository ticketRepository) {
+    public TicketService(TeamRepository teamRepository, AgentRepository agentRepository, TicketRepository ticketRepository, TeamRoutingService teamRoutingService) {
         this.teamRepository = teamRepository;
         this.agentRepository = agentRepository;
         this.ticketRepository = ticketRepository;
+        this.teamRoutingService = teamRoutingService;
     }
 
     @Transactional
-    public Ticket assignTicket(String conversationRef, String subject, Long teamId) {
-        Team team = teamRepository.findById(teamId).orElseThrow(() -> new TeamNotFoundException(teamId));
+    public Ticket assignTicket(String conversationRef, String subject) {
+        TeamEnum teamEnum = teamRoutingService.determineTeam(subject);
+        Team team = teamRepository.findByNameIgnoreCase(teamEnum.getTeamName()).orElseThrow(() -> new TeamNotFoundException(teamEnum.getTeamName()));
 
         Optional<Agent> availableAgent = agentRepository.findAvailableByTeamId(team.getId(), maxActivePerAgent);
 
