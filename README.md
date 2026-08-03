@@ -51,9 +51,10 @@ docker compose up -d postgres-test
 |---|---|
 | Times | 3 (Cartões, Empréstimos, Outros Assuntos) |
 | Atendentes por time | 3 |
-| Chamados em atendimento | 9 (1 por atendente) |
-| Chamados na fila | 3 (global) |
-| Total gerenciado | 12 |
+| Chamados por atendente | 3 simultâneos |
+| Chamados em atendimento por time | 9 (3 atendentes × 3 chamados) |
+| Chamados na fila por time | 3 |
+| Total gerenciado | 36 (27 em atendimento + 9 na fila) |
 
 ### Status dos chamados (`TicketStatus`)
 
@@ -71,9 +72,9 @@ Simula a abertura de um chamado que já veio de outra API com time definido.
 Entrada: `conversationRef`, `subject`, `teamId`.
 
 1. Valida se o **time** (`teamId`) existe.
-2. Se houver atendente livre no time → status `IN_SERVICE`.
-3. Se todos estiverem ocupados e a fila global tiver vaga (< 3) → status `QUEUED`.
-4. Se a fila estiver cheia → status `REJECTED`.
+2. Se houver atendente com menos de 3 chamados em atendimento no time → status `IN_SERVICE`.
+3. Se todos estiverem no limite e a fila **do time** tiver vaga (< 3) → status `QUEUED`.
+4. Se a fila do time estiver cheia → status `REJECTED`.
 
 O `subject` é apenas informativo; o roteamento usa exclusivamente o `teamId`.
 

@@ -95,6 +95,12 @@ public class TicketRepository {
         return count != null ? count : 0;
     }
 
+    public int countByStatusAndTeamId(TicketStatus status, Long teamId) {
+        String sql = "SELECT COUNT(*) FROM tickets WHERE status = ? AND team_id = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, status.name(), teamId);
+        return count != null ? count : 0;
+    }
+
     public Optional<Ticket> findOldestQueuedByTeamIdForUpdate(Long teamId) {
         String sql = """
             SELECT * FROM tickets

@@ -50,19 +50,24 @@ public class AgentRepository {
         return count != null ? count : 0;
     }
 
-    public Optional<Agent> findAvailableByTeamId(Long teamId) {
+    public Optional<Agent> findAvailableByTeamId(Long teamId, int maxActivePerAgent) {
         String sql = """
             SELECT a.* FROM agents a
             WHERE a.team_id = ?
-            AND NOT EXISTS (
-                SELECT 1 FROM tickets t
+            AND (
+                SELECT COUNT(*) FROM tickets t
                 WHERE t.agent_id = a.id AND t.status = ?
-            )
-            ORDER BY a.id
+            ) < ?
+            ORDER BY (
+                SELECT COUNT(*) FROM tickets t
+                WHERE t.agent_id = a.id AND t.status = ?
+            ) ASC, a.id ASC
             LIMIT 1
             """;
 
-        List<Agent> agents = jdbcTemplate.query(sql, agentRowMapper, teamId, TicketStatus.IN_SERVICE.name());
+        String status = TicketStatus.IN_SERVICE.name();
+        List<Agent> agents = jdbcTemplate.query(
+                sql, agentRowMapper, teamId, status, maxActivePerAgent, status);
         return agents.stream().findFirst();
     }
 }

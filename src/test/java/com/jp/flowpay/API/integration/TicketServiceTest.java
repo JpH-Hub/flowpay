@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -28,6 +29,11 @@ class TicketServiceTest {
     private static final Long TEAM_CARTOES = 1L;
     private static final Long TEAM_EMPRESTIMOS = 2L;
     private static final Long TEAM_OUTROS = 3L;
+
+    private static final int MAX_ACTIVE_PER_AGENT = 3;
+    private static final int AGENTS_PER_TEAM = 3;
+    private static final int MAX_IN_SERVICE_PER_TEAM = MAX_ACTIVE_PER_AGENT * AGENTS_PER_TEAM;
+    private static final int MAX_QUEUE_PER_TEAM = 3;
 
     @Autowired
     private TicketService ticketService;
@@ -72,37 +78,61 @@ class TicketServiceTest {
             Ticket third = ticketService.assignTicket("conv-005", "C", TEAM_CARTOES);
 
             Set<Long> agentIds = Set.of(first.getAgentId(), second.getAgentId(), third.getAgentId());
-            assertEquals(3, agentIds.size(), "Cada atendente deve receber no máximo um chamado");
+            assertEquals(3, agentIds.size(), "Os três primeiros chamados devem ir para atendentes distintos");
+        }
+
+        @Test
+        @DisplayName("deve permitir até 3 chamados simultâneos por atendente")
+        void shouldAllowUpToThreeTicketsPerAgent() {
+            for (int i = 0; i < MAX_IN_SERVICE_PER_TEAM; i++) {
+                Ticket ticket = ticketService.assignTicket("conv-006-" + i, "Assunto " + i, TEAM_CARTOES);
+                assertEquals(TicketStatus.IN_SERVICE, ticket.getStatus());
+            }
+
+            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
+
+            Ticket queued = ticketService.assignTicket("conv-006-queued", "Fila", TEAM_CARTOES);
+            assertEquals(TicketStatus.QUEUED, queued.getStatus());
         }
 
         @Test
         @DisplayName("deve colocar na fila quando todos os atendentes do time estiverem ocupados")
         void shouldQueueWhenTeamIsFull() {
-            ticketService.assignTicket("conv-006", "A", TEAM_CARTOES);
-            ticketService.assignTicket("conv-007", "B", TEAM_CARTOES);
-            ticketService.assignTicket("conv-008", "C", TEAM_CARTOES);
+            for (int i = 0; i < MAX_IN_SERVICE_PER_TEAM; i++) {
+                ticketService.assignTicket("conv-007-" + i, "Assunto " + i, TEAM_CARTOES);
+            }
 
             Ticket queued = ticketService.assignTicket("conv-009", "D", TEAM_CARTOES);
 
             assertEquals(TicketStatus.QUEUED, queued.getStatus());
             assertNull(queued.getAgentId());
-            assertEquals(1, ticketRepository.countByStatus(TicketStatus.QUEUED));
+            assertEquals(1, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_CARTOES));
         }
 
         @Test
-        @DisplayName("deve rejeitar chamado quando a fila global estiver cheia")
-        void shouldRejectWhenGlobalQueueIsFull() {
+        @DisplayName("deve rejeitar chamado quando a fila do time estiver cheia")
+        void shouldRejectWhenTeamQueueIsFull() {
             fillTeamToCapacity(TEAM_CARTOES, "conv-010");
-            fillTeamToCapacity(TEAM_EMPRESTIMOS, "conv-020");
-            fillTeamToCapacity(TEAM_OUTROS, "conv-030");
 
-            assertEquals(3, ticketRepository.countByStatus(TicketStatus.QUEUED));
+            assertEquals(MAX_QUEUE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_CARTOES));
 
             Ticket rejected = ticketService.assignTicket("conv-040", "Rejeitado", TEAM_CARTOES);
 
             assertEquals(TicketStatus.REJECTED, rejected.getStatus());
             assertNull(rejected.getAgentId());
-            assertEquals(3, ticketRepository.countByStatus(TicketStatus.QUEUED));
+            assertEquals(MAX_QUEUE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_CARTOES));
+        }
+
+        @Test
+        @DisplayName("deve manter filas independentes entre times")
+        void shouldKeepIndependentQueuesPerTeam() {
+            fillTeamToCapacity(TEAM_CARTOES, "conv-020");
+
+            Ticket accepted = ticketService.assignTicket("conv-021", "Empréstimos", TEAM_EMPRESTIMOS);
+
+            assertEquals(TicketStatus.IN_SERVICE, accepted.getStatus());
+            assertEquals(MAX_QUEUE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_CARTOES));
+            assertEquals(0, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_EMPRESTIMOS));
         }
 
         @Test
@@ -112,8 +142,8 @@ class TicketServiceTest {
             fillTeamToCapacity(TEAM_EMPRESTIMOS, "conv-060");
             fillTeamToCapacity(TEAM_OUTROS, "conv-070");
 
-            assertEquals(9, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
-            assertEquals(3, ticketRepository.countByStatus(TicketStatus.QUEUED));
+            assertEquals(MAX_IN_SERVICE_PER_TEAM * 3, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
+            assertEquals(MAX_QUEUE_PER_TEAM * 3, ticketRepository.countByStatus(TicketStatus.QUEUED));
         }
 
         @Test
@@ -141,29 +171,33 @@ class TicketServiceTest {
         @Test
         @DisplayName("deve finalizar chamado na fila sem promover outros")
         void shouldCloseQueuedTicketWithoutPromotion() {
-            fillTeamToCapacity(TEAM_CARTOES, "conv-110");
+            for (int i = 0; i < MAX_IN_SERVICE_PER_TEAM; i++) {
+                ticketService.assignTicket("conv-110-" + i, "Assunto " + i, TEAM_CARTOES);
+            }
             Ticket queued = ticketService.assignTicket("conv-114", "Na fila", TEAM_CARTOES);
 
             Ticket closed = ticketService.closeTicket(queued.getId());
 
             assertEquals(TicketStatus.CLOSED, closed.getStatus());
-            assertEquals(1, ticketRepository.countByStatus(TicketStatus.QUEUED));
-            assertEquals(3, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
+            assertEquals(0, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_CARTOES));
+            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
         }
 
         @Test
         @DisplayName("deve promover o chamado mais antigo da fila do mesmo time")
         void shouldPromoteOldestQueuedTicketFromSameTeam() {
-            Ticket first = ticketService.assignTicket("conv-120", "A", TEAM_CARTOES);
-            ticketService.assignTicket("conv-121", "B", TEAM_CARTOES);
-            ticketService.assignTicket("conv-122", "C", TEAM_CARTOES);
+            List<Ticket> activeCartoes = new ArrayList<>();
+            for (int i = 0; i < MAX_IN_SERVICE_PER_TEAM; i++) {
+                activeCartoes.add(ticketService.assignTicket("conv-120-" + i, "A" + i, TEAM_CARTOES));
+            }
             Ticket oldestQueued = ticketService.assignTicket("conv-123", "D", TEAM_CARTOES);
-            ticketService.assignTicket("conv-124", "E", TEAM_EMPRESTIMOS);
-            ticketService.assignTicket("conv-125", "F", TEAM_EMPRESTIMOS);
-            ticketService.assignTicket("conv-126", "G", TEAM_EMPRESTIMOS);
+
+            for (int i = 0; i < MAX_IN_SERVICE_PER_TEAM; i++) {
+                ticketService.assignTicket("conv-125-" + i, "E" + i, TEAM_EMPRESTIMOS);
+            }
             Ticket emprestimosQueued = ticketService.assignTicket("conv-127", "H", TEAM_EMPRESTIMOS);
 
-            ticketService.closeTicket(first.getId());
+            ticketService.closeTicket(activeCartoes.get(0).getId());
 
             Ticket promotedCartoes = ticketRepository.findById(oldestQueued.getId()).orElseThrow();
             Ticket stillQueuedEmprestimos = ticketRepository.findById(emprestimosQueued.getId()).orElseThrow();
@@ -179,7 +213,6 @@ class TicketServiceTest {
             Ticket first = ticketService.assignTicket("conv-130", "A", TEAM_CARTOES);
             ticketService.assignTicket("conv-131", "B", TEAM_CARTOES);
             ticketService.assignTicket("conv-132", "C", TEAM_CARTOES);
-            ticketService.assignTicket("conv-133", "D", TEAM_CARTOES);
 
             ticketService.closeTicket(first.getId());
 
@@ -210,8 +243,6 @@ class TicketServiceTest {
         @DisplayName("deve lançar exceção ao fechar chamado rejeitado")
         void shouldThrowWhenClosingRejectedTicket() {
             fillTeamToCapacity(TEAM_CARTOES, "conv-150");
-            fillTeamToCapacity(TEAM_EMPRESTIMOS, "conv-160");
-            fillTeamToCapacity(TEAM_OUTROS, "conv-170");
 
             Ticket rejected = ticketService.assignTicket("conv-180", "Rejeitado", TEAM_CARTOES);
 
@@ -227,30 +258,34 @@ class TicketServiceTest {
         @Test
         @DisplayName("deve simular ciclo de abertura, fila, finalização e realocação")
         void shouldSimulateFullTicketLifecycle() {
-            List<Ticket> activeCartoes = new java.util.ArrayList<>();
-            for (int i = 0; i < 3; i++) {
+            List<Ticket> activeCartoes = new ArrayList<>();
+            for (int i = 0; i < MAX_IN_SERVICE_PER_TEAM; i++) {
                 activeCartoes.add(ticketService.assignTicket("conv-200-" + i, "Assunto " + i, TEAM_CARTOES));
             }
 
             Ticket queued = ticketService.assignTicket("conv-201", "Aguardando", TEAM_CARTOES);
 
-            assertEquals(3, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
+            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
             assertEquals(TicketStatus.QUEUED, queued.getStatus());
 
             ticketService.closeTicket(activeCartoes.get(0).getId());
 
             Ticket promoted = ticketRepository.findById(queued.getId()).orElseThrow();
             assertEquals(TicketStatus.IN_SERVICE, promoted.getStatus());
+            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
+            assertEquals(0, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_CARTOES));
 
             Ticket newAssignment = ticketService.assignTicket("conv-202", "Novo chamado", TEAM_CARTOES);
-            assertEquals(TicketStatus.IN_SERVICE, newAssignment.getStatus());
+            assertEquals(TicketStatus.QUEUED, newAssignment.getStatus());
         }
     }
 
     private void fillTeamToCapacity(Long teamId, String conversationPrefix) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < MAX_IN_SERVICE_PER_TEAM; i++) {
             ticketService.assignTicket(conversationPrefix + "-" + i, "Assunto " + i, teamId);
         }
-        ticketService.assignTicket(conversationPrefix + "-queued", "Fila", teamId);
+        for (int i = 0; i < MAX_QUEUE_PER_TEAM; i++) {
+            ticketService.assignTicket(conversationPrefix + "-queued-" + i, "Fila " + i, teamId);
+        }
     }
 }

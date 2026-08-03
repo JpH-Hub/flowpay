@@ -22,13 +22,14 @@ public class TicketService {
     @Value("${flowpay.ticket.max-queue-size:3}")
     private int maxQueueSize;
 
+    @Value("${flowpay.ticket.max-active-per-agent:3}")
+    private int maxActivePerAgent;
+
     private final TeamRepository teamRepository;
     private final AgentRepository agentRepository;
     private final TicketRepository ticketRepository;
 
-    public TicketService(TeamRepository teamRepository,
-                         AgentRepository agentRepository,
-                         TicketRepository ticketRepository) {
+    public TicketService(TeamRepository teamRepository, AgentRepository agentRepository, TicketRepository ticketRepository) {
         this.teamRepository = teamRepository;
         this.agentRepository = agentRepository;
         this.ticketRepository = ticketRepository;
@@ -36,44 +37,24 @@ public class TicketService {
 
     @Transactional
     public Ticket assignTicket(String conversationRef, String subject, Long teamId) {
-        Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new TeamNotFoundException(teamId));
+        Team team = teamRepository.findById(teamId).orElseThrow(() -> new TeamNotFoundException(teamId));
 
-        Optional<Agent> availableAgent = agentRepository.findAvailableByTeamId(team.getId());
+        Optional<Agent> availableAgent = agentRepository.findAvailableByTeamId(team.getId(), maxActivePerAgent);
 
         if (availableAgent.isPresent()) {
-            return ticketRepository.save(buildTicket(
-                    conversationRef,
-                    subject,
-                    TicketStatus.IN_SERVICE,
-                    team.getId(),
-                    availableAgent.get().getId()
-            ));
+            return ticketRepository.save(buildTicket(conversationRef, subject, TicketStatus.IN_SERVICE, team.getId(), availableAgent.get().getId()));
         }
 
-        if (ticketRepository.countByStatus(TicketStatus.QUEUED) >= maxQueueSize) {
-            return ticketRepository.save(buildTicket(
-                    conversationRef,
-                    subject,
-                    TicketStatus.REJECTED,
-                    team.getId(),
-                    null
-            ));
+        if (ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, team.getId()) >= maxQueueSize) {
+            return ticketRepository.save(buildTicket(conversationRef, subject, TicketStatus.REJECTED, team.getId(), null));
         }
 
-        return ticketRepository.save(buildTicket(
-                conversationRef,
-                subject,
-                TicketStatus.QUEUED,
-                team.getId(),
-                null
-        ));
+        return ticketRepository.save(buildTicket(conversationRef, subject, TicketStatus.QUEUED, team.getId(), null));
     }
 
     @Transactional
     public Ticket closeTicket(Long ticketId) {
-        Ticket ticket = ticketRepository.findByIdForUpdate(ticketId)
-                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+        Ticket ticket = ticketRepository.findByIdForUpdate(ticketId).orElseThrow(() -> new TicketNotFoundException(ticketId));
 
         if (ticket.getStatus() != TicketStatus.IN_SERVICE && ticket.getStatus() != TicketStatus.QUEUED) {
             throw new InvalidTicketStatusException(ticket.getStatus(), "close");
@@ -93,13 +74,13 @@ public class TicketService {
     }
 
     private void promoteFromQueue(Long teamId) {
-        Optional<Agent> availableAgent = agentRepository.findAvailableByTeamId(teamId);
-        if (availableAgent.isEmpty()) {
+        Optional<Ticket> queuedTicket = ticketRepository.findOldestQueuedByTeamIdForUpdate(teamId);
+        if (queuedTicket.isEmpty()) {
             return;
         }
 
-        Optional<Ticket> queuedTicket = ticketRepository.findOldestQueuedByTeamIdForUpdate(teamId);
-        if (queuedTicket.isEmpty()) {
+        Optional<Agent> availableAgent = agentRepository.findAvailableByTeamId(teamId, maxActivePerAgent);
+        if (availableAgent.isEmpty()) {
             return;
         }
 
@@ -109,11 +90,7 @@ public class TicketService {
         ticketRepository.update(ticket);
     }
 
-    private Ticket buildTicket(String conversationRef,
-                               String subject,
-                               TicketStatus status,
-                               Long teamId,
-                               Long agentId) {
+    private Ticket buildTicket(String conversationRef, String subject, TicketStatus status, Long teamId, Long agentId) {
         Ticket ticket = new Ticket();
         ticket.setConversationRef(conversationRef);
         ticket.setSubject(subject);
