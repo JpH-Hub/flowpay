@@ -1,6 +1,6 @@
 # FlowPay API
 
-API responsável por rotear chamados para a equipe correta e atribuí-los a um atendente disponível.
+API responsável por atribuir chamados a um atendente disponível. O chamado chega de outra API já com o time definido; esta API apenas gerencia a fila e a alocação de atendentes.
 
 ## Requisitos
 
@@ -64,12 +64,18 @@ docker compose up -d postgres-test
 | `CLOSED` | Finalizado |
 | `REJECTED` | Recusado (fila cheia) |
 
-### Fluxo de criação (`TicketService.createTicket`)
+### Fluxo de atribuição (`TicketService.assignTicket`)
 
-1. O **assunto** (`subject`) identifica o time (busca case-insensitive pelo nome).
+Simula a abertura de um chamado que já veio de outra API com time definido.
+
+Entrada: `conversationRef`, `subject`, `teamId`.
+
+1. Valida se o **time** (`teamId`) existe.
 2. Se houver atendente livre no time → status `IN_SERVICE`.
 3. Se todos estiverem ocupados e a fila global tiver vaga (< 3) → status `QUEUED`.
 4. Se a fila estiver cheia → status `REJECTED`.
+
+O `subject` é apenas informativo; o roteamento usa exclusivamente o `teamId`.
 
 ### Fluxo de finalização (`TicketService.closeTicket`)
 

@@ -10,6 +10,7 @@ import com.jp.flowpay.API.exception.TicketNotFoundException;
 import com.jp.flowpay.API.repository.AgentRepository;
 import com.jp.flowpay.API.repository.TeamRepository;
 import com.jp.flowpay.API.repository.TicketRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +19,8 @@ import java.util.Optional;
 @Service
 public class TicketService {
 
-    static final int MAX_QUEUE_SIZE = 3;
+    @Value("${flowpay.ticket.max-queue-size:3}")
+    private int maxQueueSize;
 
     private final TeamRepository teamRepository;
     private final AgentRepository agentRepository;
@@ -33,9 +35,9 @@ public class TicketService {
     }
 
     @Transactional
-    public Ticket createTicket(String conversationRef, String subject) {
-        Team team = teamRepository.findByNameIgnoreCase(subject)
-                .orElseThrow(() -> new TeamNotFoundException(subject));
+    public Ticket assignTicket(String conversationRef, String subject, Long teamId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new TeamNotFoundException(teamId));
 
         Optional<Agent> availableAgent = agentRepository.findAvailableByTeamId(team.getId());
 
@@ -49,7 +51,7 @@ public class TicketService {
             ));
         }
 
-        if (ticketRepository.countByStatus(TicketStatus.QUEUED) >= MAX_QUEUE_SIZE) {
+        if (ticketRepository.countByStatus(TicketStatus.QUEUED) >= maxQueueSize) {
             return ticketRepository.save(buildTicket(
                     conversationRef,
                     subject,
