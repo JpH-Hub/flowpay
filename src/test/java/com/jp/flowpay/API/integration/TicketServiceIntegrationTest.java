@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-class TicketServiceTest {
+class TicketServiceIntegrationTest {
 
     private static final Long TEAM_CARTOES = 1L;
     private static final Long TEAM_EMPRESTIMOS = 2L;
