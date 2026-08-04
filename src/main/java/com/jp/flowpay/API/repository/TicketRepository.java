@@ -89,4 +89,29 @@ public class TicketRepository {
         jdbcTemplate.update(sql, ticket.getStatus().name(), ticket.getAgentId(), ticket.getId());
     }
 
+    public int countByStatus(TicketStatus status) {
+        String sql = "SELECT COUNT(*) FROM tickets WHERE status = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, status.name());
+        return count != null ? count : 0;
+    }
+
+    public int countByStatusAndTeamId(TicketStatus status, Long teamId) {
+        String sql = "SELECT COUNT(*) FROM tickets WHERE status = ? AND team_id = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, status.name(), teamId);
+        return count != null ? count : 0;
+    }
+
+    public Optional<Ticket> findOldestQueuedByTeamIdForUpdate(Long teamId) {
+        String sql = """
+            SELECT * FROM tickets
+            WHERE team_id = ? AND status = ?
+            ORDER BY created_at ASC
+            LIMIT 1
+            FOR UPDATE
+            """;
+
+        List<Ticket> tickets = jdbcTemplate.query(sql, ticketRowMapper, teamId, TicketStatus.QUEUED.name());
+        return tickets.stream().findFirst();
+    }
+
 }
