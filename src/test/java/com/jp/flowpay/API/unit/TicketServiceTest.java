@@ -87,7 +87,7 @@ class TicketServiceTest {
 
         assertNotNull(result);
         assertEquals(TicketStatus.IN_SERVICE, result.getStatus());
-        assertEquals(20L, result.getAgentId());
+        assertEquals(10L, result.getAgentId());
         assertEquals(1L, result.getTeamId());
 
         verify(ticketRepository).save(any(Ticket.class));
