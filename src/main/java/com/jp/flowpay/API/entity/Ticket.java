@@ -19,6 +19,8 @@ public class Ticket {
 
     private LocalDateTime createdAt;
 
+    private String teamName;
+
 
     public Ticket() {
     }
@@ -38,6 +40,14 @@ public class Ticket {
         this.teamId = teamId;
         this.agentId = agentId;
         this.createdAt = createdAt;
+    }
+
+    public String getTeamName() {
+        return teamName;
+    }
+
+    public void setTeamName(String teamName) {
+        this.teamName = teamName;
     }
 
 
