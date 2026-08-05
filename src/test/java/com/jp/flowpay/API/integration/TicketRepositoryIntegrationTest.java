@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class TicketRepositoryTest {
+public class TicketRepositoryIntegrationTest {
 
     @Autowired
     private TicketRepository ticketRepository;
