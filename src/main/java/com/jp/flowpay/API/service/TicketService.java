@@ -41,19 +41,27 @@ public class TicketService {
     @Transactional
     public Ticket assignTicket(String conversationRef, String subject) {
         TeamEnum teamEnum = teamRoutingService.determineTeam(subject);
-        Team team = teamRepository.findByNameIgnoreCase(teamEnum.getTeamName()).orElseThrow(() -> new TeamNotFoundException(teamEnum.getTeamName()));
+        Team team = teamRepository.findByNameIgnoreCase(teamEnum.getTeamName())
+                .orElseThrow(() -> new TeamNotFoundException(teamEnum.getTeamName()));
 
         Optional<Agent> availableAgent = agentRepository.findAvailableByTeamId(team.getId(), maxActivePerAgent);
 
+        Ticket ticket;
         if (availableAgent.isPresent()) {
-            return ticketRepository.save(buildTicket(conversationRef, subject, TicketStatus.IN_SERVICE, team.getId(), availableAgent.get().getId()));
+            ticket = buildTicket(conversationRef, subject, TicketStatus.IN_SERVICE, team.getId(), availableAgent.get().getId());
+        } else if (ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, team.getId()) >= maxQueueSize) {
+            ticket = buildTicket(conversationRef, subject, TicketStatus.REJECTED, team.getId(), null);
+        } else {
+            ticket = buildTicket(conversationRef, subject, TicketStatus.QUEUED, team.getId(), null);
         }
 
-        if (ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, team.getId()) >= maxQueueSize) {
-            return ticketRepository.save(buildTicket(conversationRef, subject, TicketStatus.REJECTED, team.getId(), null));
-        }
 
-        return ticketRepository.save(buildTicket(conversationRef, subject, TicketStatus.QUEUED, team.getId(), null));
+        Ticket persistedTicket = ticketRepository.save(ticket);
+
+
+        persistedTicket.setTeamName(team.getName());
+
+        return persistedTicket;
     }
 
     @Transactional
