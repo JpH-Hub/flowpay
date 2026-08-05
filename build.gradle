@@ -37,26 +37,26 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 }
 
-// Task padrão: Roda tudo EXCETO o pacote de integração
+// Task padrão: Roda tudo EXCETO integração e E2E
 tasks.named('test', Test) {
 	useJUnitPlatform()
 	filter {
-		// Exclui todas as classes dentro de qualquer subpacote chamado "integration"
 		excludeTestsMatching "*.integration.*"
+		excludeTestsMatching "*.e2e.*"
 	}
 }
 
-// Nova task: Roda APENAS o pacote de integração
+// Nova task: Roda integração e E2E (requer banco de testes)
 tasks.register('integrationTest', Test) {
-	description = 'Roda apenas os testes de integração.'
+	description = 'Roda testes de integração e E2E.'
 	group = 'verification'
 
-	// AVISANDO O GRADLE ONDE FICAM AS CLASSES DE TESTE:
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
 
 	useJUnitPlatform()
 	filter {
 		includeTestsMatching "*.integration.*"
+		includeTestsMatching "*.e2e.*"
 	}
 }
