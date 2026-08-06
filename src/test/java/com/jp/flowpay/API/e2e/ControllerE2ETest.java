@@ -31,7 +31,7 @@ class ControllerE2ETest {
     @Test
     void shouldCreateTicketSuccessfullyInRealEnvironment() throws Exception {
         CreateTicketRequestDTO request = new CreateTicketRequestDTO();
-        request.setConversationRef("WHATS-123");
+        request.setConversationRef("");
         request.setSubject("Problema com meu Cartão de Crédito");
 
         mockMvc.perform(post("/tickets")
