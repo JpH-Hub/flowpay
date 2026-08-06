@@ -1,6 +1,6 @@
 # FlowPay API
 
-API responsável por atribuir chamados a um atendente disponível. O chamado chega de outra API já com o time definido; esta API apenas gerencia a fila e a alocação de atendentes.
+API responsável por rotear chamados para o time correto, gerenciar filas e alocar atendentes disponíveis.
 
 ## Requisitos
 
@@ -36,14 +36,69 @@ Testes unitários (sem banco):
 ./gradlew test
 ```
 
-Testes de integração (exige o container `postgres-test` na porta `5434`):
+Testes de integração e E2E (exige o container `postgres-test` na porta `5434`):
 
 ```bash
 docker compose up -d postgres-test
 ./gradlew integrationTest
 ```
 
-## Como a API funciona hoje
+## Endpoints
+
+### `POST /tickets`
+
+Cria um chamado e atribui a um atendente ou fila.
+
+**Request body:**
+
+```json
+{
+  "conversationRef": "WHATS-123",
+  "subject": "Problema com meu Cartão de Crédito"
+}
+```
+
+**Response `201 Created`:**
+
+```json
+{
+  "id": 1,
+  "conversationRef": "WHATS-123",
+  "subject": "Problema com meu Cartão de Crédito",
+  "team": "Cartões",
+  "status": "IN_SERVICE",
+  "agentId": 1
+}
+```
+
+**Erros:**
+
+| Status | Cenário |
+|---|---|
+| `400` | Campos obrigatórios ausentes ou em branco |
+| `409` | `conversationRef` já existe |
+
+### `PATCH /tickets/{id}/close`
+
+Finaliza um chamado em atendimento ou na fila.
+
+**Response `200 OK`:**
+
+```json
+{
+  "ticketId": 1,
+  "status": "CLOSED"
+}
+```
+
+**Erros:**
+
+| Status | Cenário |
+|---|---|
+| `400` | Ticket já fechado, rejeitado ou status inválido |
+| `404` | Ticket não encontrado |
+
+## Como a API funciona
 
 ### Capacidade do sistema
 
@@ -65,18 +120,26 @@ docker compose up -d postgres-test
 | `CLOSED` | Finalizado |
 | `REJECTED` | Recusado (fila cheia) |
 
+### Roteamento por assunto (`TeamRoutingService`)
+
+O time é determinado automaticamente a partir do campo `subject`:
+
+| Palavra-chave no assunto | Time |
+|---|---|
+| `cartão` / `cartao` | Cartões |
+| `empréstimo` / `emprestimo` | Empréstimos |
+| Demais casos | Outros Assuntos |
+
+Acentos são normalizados (ex.: `"Cartão"` e `"cartao"` roteiam para Cartões).
+
 ### Fluxo de atribuição (`TicketService.assignTicket`)
 
-Simula a abertura de um chamado que já veio de outra API com time definido.
+Entrada: `conversationRef`, `subject`.
 
-Entrada: `conversationRef`, `subject`, `teamId`.
-
-1. Valida se o **time** (`teamId`) existe.
+1. Determina o **time** a partir do `subject`.
 2. Se houver atendente com menos de 3 chamados em atendimento no time → status `IN_SERVICE`.
 3. Se todos estiverem no limite e a fila **do time** tiver vaga (< 3) → status `QUEUED`.
 4. Se a fila do time estiver cheia → status `REJECTED`.
-
-O `subject` é apenas informativo; o roteamento usa exclusivamente o `teamId`.
 
 ### Fluxo de finalização (`TicketService.closeTicket`)
 
@@ -87,13 +150,11 @@ O `subject` é apenas informativo; o roteamento usa exclusivamente o `teamId`.
 ### Camadas implementadas
 
 ```
-Controller  →  (não implementado)
-Service     →  TicketService
+Controller  →  TicketController
+Service     →  TicketService, TeamRoutingService
 Repository  →  TeamRepository, AgentRepository, TicketRepository
 Database    →  PostgreSQL + Flyway (V1 schema, V2 seed)
 ```
-
-A camada REST ainda não existe. A lógica de negócio está disponível via `TicketService` e pode ser consumida por controllers futuros.
 
 ## Estrutura do banco
 
@@ -103,4 +164,4 @@ A camada REST ainda não existe. A lógica de negócio está disponível via `Ti
 
 ## CI
 
-O pipeline no GitHub Actions executa testes unitários, testes de integração (com PostgreSQL) e gera o JAR da aplicação.
+O pipeline no GitHub Actions executa testes unitários, testes de integração/E2E (com PostgreSQL) e gera o JAR da aplicação.
