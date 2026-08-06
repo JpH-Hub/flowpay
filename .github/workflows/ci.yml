@@ -50,7 +50,7 @@ jobs:
             -Dhttp.agent="GitHubActions-Gradle"
 
   integration-tests:
-    name: Testes de integração
+    name: Testes de integração e E2E
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -93,7 +93,7 @@ jobs:
       - name: Permitir execução do Gradle Wrapper
         run: chmod +x gradlew
 
-      - name: Executar testes de integração
+      - name: Executar testes de integração e E2E
         run: |
           ./gradlew integrationTest \
             --no-daemon \

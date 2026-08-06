@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '4.1.0'
+	id 'org.springframework.boot' version '3.5.6'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'jacoco'
 }
@@ -22,36 +22,41 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+
+	// Flyway oficial
+	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+
 	runtimeOnly 'org.postgresql:postgresql'
+
+	// O starter-test JÁ INCLUI o @WebMvcTest, MockMvc, Mockito e JUnit
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 }
 
-// Task padrão: Roda tudo EXCETO o pacote de integração
+// Task padrão: Roda tudo EXCETO integração e E2E
 tasks.named('test', Test) {
 	useJUnitPlatform()
 	filter {
-		// Exclui todas as classes dentro de qualquer subpacote chamado "integration"
 		excludeTestsMatching "*.integration.*"
+		excludeTestsMatching "*.e2e.*"
 	}
 }
 
-// Nova task: Roda APENAS o pacote de integração
+// Nova task: Roda integração e E2E (requer banco de testes)
 tasks.register('integrationTest', Test) {
-	description = 'Roda apenas os testes de integração.'
+	description = 'Roda testes de integração e E2E.'
 	group = 'verification'
 
-	// AVISANDO O GRADLE ONDE FICAM AS CLASSES DE TESTE:
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
 
 	useJUnitPlatform()
 	filter {
 		includeTestsMatching "*.integration.*"
+		includeTestsMatching "*.e2e.*"
 	}
 }
