@@ -33,7 +33,6 @@ class ControllerE2ETest {
         CreateTicketRequestDTO request = new CreateTicketRequestDTO();
         request.setConversationRef("WHATS-123");
         request.setSubject("Problema com meu Cartão de Crédito");
-
         mockMvc.perform(post("/tickets")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
