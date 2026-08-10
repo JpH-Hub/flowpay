@@ -1,0 +1,22 @@
+info:
+  name: Criar - Cartões - Atendente disponível
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8080/tickets
+  body:
+    type: json
+    data: |-
+      {
+        "conversationRef": "WHATS-123",
+        "subject": "Preciso de ajuda com meu cartão de crédito"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
