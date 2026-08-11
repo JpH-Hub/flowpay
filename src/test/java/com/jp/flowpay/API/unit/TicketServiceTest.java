@@ -97,7 +97,6 @@ class TicketServiceTest {
     @Test
     @DisplayName("Deve criar ticket QUEUED quando não houver atendente, mas a fila não estiver cheia")
     void assignTicket_AgentNotAvailable_QueueNotFull_ShouldCreateQueued() {
-
         String subject = "cartao";
 
         when(teamRoutingService.determineTeam(subject)).thenReturn(TeamEnum.CREDIT_CARDS);

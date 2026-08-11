@@ -1,0 +1,22 @@
+info:
+  name: Criar - Empréstimos - Atendente disponível
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:8080/tickets
+  body:
+    type: json
+    data: |2-
+       {
+          "conversationRef": "teste-123",
+          "subject": "Gostaria de saber sobre um empréstimo"
+        }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
