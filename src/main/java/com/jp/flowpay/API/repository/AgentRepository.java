@@ -32,22 +32,9 @@ public class AgentRepository {
         return agents.stream().findFirst();
     }
 
-    public Optional<Agent> findByIdForUpdate(Long id) {
-        String sql = "SELECT * FROM agents WHERE id = ? FOR UPDATE";
-        List<Agent> agents = jdbcTemplate.query(sql, agentRowMapper, id);
-        return agents.stream().findFirst();
-    }
-
-    public List<Agent> findAll() {
-        String sql = "SELECT * FROM agents";
-        return jdbcTemplate.query(sql, agentRowMapper);
-    }
-
-    public int countActiveTicketsByAgentId(Long agentId) {
-        String sql = "SELECT COUNT(*) FROM tickets WHERE agent_id = ? AND status = ?";
-
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, agentId, TicketStatus.IN_SERVICE.name());
-        return count != null ? count : 0;
+    public List<Agent> findByTeamId(Long teamId) {
+        String sql = "SELECT * FROM agents WHERE team_id = ? ORDER BY id";
+        return jdbcTemplate.query(sql, agentRowMapper, teamId);
     }
 
     public Optional<Agent> findAvailableByTeamId(Long teamId, int maxActivePerAgent) {
