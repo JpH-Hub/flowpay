@@ -114,4 +114,14 @@ public class TicketRepository {
         return tickets.stream().findFirst();
     }
 
+    public List<Ticket> findByAgentIdAndStatus(Long agentId, TicketStatus status) {
+        String sql = "SELECT * FROM tickets WHERE agent_id = ? AND status = ? ORDER BY created_at ASC";
+        return jdbcTemplate.query(sql, ticketRowMapper, agentId, status.name());
+    }
+
+    public List<Ticket> findByTeamIdAndStatus(Long teamId, TicketStatus status) {
+        String sql = "SELECT * FROM tickets WHERE team_id = ? AND status = ? ORDER BY created_at ASC";
+        return jdbcTemplate.query(sql, ticketRowMapper, teamId, status.name());
+    }
+
 }
