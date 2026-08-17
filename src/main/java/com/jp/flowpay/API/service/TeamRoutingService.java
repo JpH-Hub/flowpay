@@ -18,11 +18,14 @@ public class TeamRoutingService {
 
         String normalizedSubject = normalizeText(subject);
 
-        if (normalizedSubject.contains("cartao")) {
+        if (normalizedSubject.contains("cartao") ||
+                normalizedSubject.contains("cartoes") ||
+                normalizedSubject.contains("credito")) {
             return TeamEnum.CREDIT_CARDS;
         }
 
-        if (normalizedSubject.contains("emprestimo")) {
+        if (normalizedSubject.contains("emprestimo") ||
+                normalizedSubject.contains("financiamento")) {
             return TeamEnum.LOANS;
         }
 
