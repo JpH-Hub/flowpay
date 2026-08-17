@@ -6,6 +6,7 @@ import com.jp.flowpay.API.entity.Team;
 import com.jp.flowpay.API.entity.Ticket;
 import org.springframework.stereotype.Component;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Component
@@ -15,6 +16,13 @@ public class DashboardMapper {
         dto.setId("ticket-" + ticket.getId());
         dto.setChatRef(ticket.getConversationRef());
         dto.setStatus(ticket.getStatus());
+        dto.setSubject(ticket.getSubject());
+        if (ticket.getCreatedAt() != null) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd 'às' HH:mm");
+            dto.setEntryDate(ticket.getCreatedAt().format(formatter));
+        } else {
+            dto.setEntryDate("Data desconhecida");
+        }
         return dto;
     }
 

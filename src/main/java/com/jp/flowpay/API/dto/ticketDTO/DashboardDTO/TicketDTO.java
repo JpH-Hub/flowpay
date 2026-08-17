@@ -15,4 +15,6 @@ public class TicketDTO {
     private String id;
     private String chatRef;
     private TicketStatus status;
+    private String subject;
+    private String entryDate;
 }
