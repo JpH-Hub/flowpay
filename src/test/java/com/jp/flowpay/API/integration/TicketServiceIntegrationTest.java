@@ -144,8 +144,22 @@ class TicketServiceIntegrationTest {
             fillTeamToCapacity("empréstimo", "conv-060");
             fillTeamToCapacity("outros", "conv-070");
 
-            assertEquals(MAX_IN_SERVICE_PER_TEAM * 3, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
-            assertEquals(MAX_QUEUE_PER_TEAM * 3, ticketRepository.countByStatus(TicketStatus.QUEUED));
+            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.IN_SERVICE, TEAM_CARTOES));
+            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.IN_SERVICE, TEAM_EMPRESTIMOS));
+            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.IN_SERVICE, TEAM_OUTROS));
+
+            assertEquals(MAX_QUEUE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_CARTOES));
+            assertEquals(MAX_QUEUE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_EMPRESTIMOS));
+            assertEquals(MAX_QUEUE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_OUTROS));
+        }
+
+        @Test
+        @DisplayName("deve lançar exceção ao tentar criar ticket com conversationRef duplicada")
+        void shouldThrowExceptionOnDuplicateConversationRef() {
+            ticketService.assignTicket("zap-999", "Dúvida");
+
+            assertThrows(com.jp.flowpay.API.exception.DuplicateTicketException.class,
+                    () -> ticketService.assignTicket("zap-999", "Outra dúvida"));
         }
     }
 
@@ -157,10 +171,10 @@ class TicketServiceIntegrationTest {
         @DisplayName("deve finalizar chamado em atendimento")
         void shouldCloseInServiceTicket() {
             Ticket ticket = ticketService.assignTicket("conv-100", "Dúvida sobre cartão");
-
             Ticket closed = ticketService.closeTicket(ticket.getId());
 
             assertEquals(TicketStatus.CLOSED, closed.getStatus());
+            assertNotNull(closed.getClosedAt(), "A data de fechamento (closedAt) deve ser preenchida");
         }
 
         @Test
@@ -175,7 +189,7 @@ class TicketServiceIntegrationTest {
 
             assertEquals(TicketStatus.CLOSED, closed.getStatus());
             assertEquals(0, ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, TEAM_CARTOES));
-            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatus(TicketStatus.IN_SERVICE));
+            assertEquals(MAX_IN_SERVICE_PER_TEAM, ticketRepository.countByStatusAndTeamId(TicketStatus.IN_SERVICE, TEAM_CARTOES));
         }
 
         @Test
@@ -278,6 +292,8 @@ class TicketServiceIntegrationTest {
             assertEquals(TicketStatus.QUEUED, newAssignment.getStatus());
         }
     }
+
+
 
     private void fillTeamToCapacity(String subjectKeyword, String conversationPrefix) {
         for (int i = 0; i < MAX_IN_SERVICE_PER_TEAM; i++) {
