@@ -26,12 +26,6 @@ public class AgentRepository {
         return agent;
     };
 
-    public Optional<Agent> findById(Long id) {
-        String sql = "SELECT * FROM agents WHERE id = ?";
-        List<Agent> agents = jdbcTemplate.query(sql, agentRowMapper, id);
-        return agents.stream().findFirst();
-    }
-
     public List<Agent> findByTeamId(Long teamId) {
         String sql = "SELECT * FROM agents WHERE team_id = ? ORDER BY id";
         return jdbcTemplate.query(sql, agentRowMapper, teamId);

@@ -133,6 +133,8 @@ class TicketServiceTest {
 
         assertEquals(TicketStatus.REJECTED, result.getStatus());
         assertNull(result.getAgentId());
+        assertNotNull(result.getRejectedAt(), "A data de rejeição não pode ser nula");
+        assertEquals("QUEUE_FULL", result.getRejectionReason());
     }
 
     @Test
@@ -244,5 +246,17 @@ class TicketServiceTest {
 
 
         assertThrows(InvalidTicketStatusException.class, () -> ticketService.closeTicket(1L));
+    }
+
+    @Test
+    @DisplayName("Deve lançar DuplicateTicketException se a referência já existir")
+    void assignTicket_DuplicateRef_ShouldThrowException() {
+        String ref = "chat-duplicado";
+        when(ticketRepository.existsByConversationRef(ref)).thenReturn(true);
+
+        assertThrows(com.jp.flowpay.API.exception.DuplicateTicketException.class,
+                () -> ticketService.assignTicket(ref, "Qualquer assunto"));
+
+        verify(ticketRepository, never()).save(any());
     }
 }

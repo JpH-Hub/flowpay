@@ -17,12 +17,25 @@ public class DashboardMapper {
         dto.setChatRef(ticket.getConversationRef());
         dto.setStatus(ticket.getStatus());
         dto.setSubject(ticket.getSubject());
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd 'às' HH:mm");
+
         if (ticket.getCreatedAt() != null) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd 'às' HH:mm");
             dto.setEntryDate(ticket.getCreatedAt().format(formatter));
         } else {
             dto.setEntryDate("Data desconhecida");
         }
+        if (ticket.getStartedAt() != null) {
+            dto.setStartedAt(ticket.getStartedAt().format(formatter));
+        }
+        if (ticket.getClosedAt() != null) {
+            dto.setClosedAt(ticket.getClosedAt().format(formatter));
+        }
+        if (ticket.getRejectedAt() != null) {
+            dto.setRejectedAt(ticket.getRejectedAt().format(formatter));
+        }
+        dto.setRejectionReason(ticket.getRejectionReason());
+
         return dto;
     }
 
