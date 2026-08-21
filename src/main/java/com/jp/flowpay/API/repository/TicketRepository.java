@@ -1,5 +1,6 @@
 package com.jp.flowpay.API.repository;
 
+import com.jp.flowpay.API.dto.ticketDTO.monitoring.RecentActivityDTO;
 import com.jp.flowpay.API.entity.Ticket;
 import com.jp.flowpay.API.enums.TicketStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,6 +41,20 @@ public class TicketRepository {
         ticket.setRejectionReason(rs.getString("rejection_reason"));
 
         return ticket;
+    };
+
+    private final RowMapper<RecentActivityDTO> recentActivityRowMapper = (rs, rowNum) -> {
+        RecentActivityDTO dto = new RecentActivityDTO();
+        dto.setId(rs.getLong("id"));
+        dto.setChatRef(rs.getString("chat_ref"));
+        dto.setSubject(rs.getString("subject"));
+        dto.setStatus(TicketStatus.valueOf(rs.getString("status")));
+        dto.setAgentName(rs.getString("agent_name"));
+        dto.setTeamName(rs.getString("team_name"));
+        dto.setClosedAt(rs.getTimestamp("closed_at") != null ? rs.getTimestamp("closed_at").toLocalDateTime() : null);
+        dto.setRejectedAt(rs.getTimestamp("rejected_at") != null ? rs.getTimestamp("rejected_at").toLocalDateTime() : null);
+        dto.setRejectionReason(rs.getString("rejection_reason"));
+        return dto;
     };
 
     public Ticket save(Ticket ticket) {
@@ -126,6 +141,29 @@ public class TicketRepository {
         String sql = "SELECT COUNT(1) FROM tickets WHERE conversation_ref = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, conversationRef);
         return count != null && count > 0;
+    }
+
+    public List<RecentActivityDTO> findRecentFinishedTickets(int limit) {
+        String sql = """
+                SELECT t.id,
+                       t.conversation_ref AS chat_ref,
+                       t.subject,
+                       t.status,
+                       a.name AS agent_name,
+                       te.name AS team_name,
+                       t.closed_at,
+                       t.rejected_at,
+                       t.rejection_reason
+                FROM tickets t
+                LEFT JOIN agents a ON a.id = t.agent_id
+                JOIN teams te ON te.id = t.team_id
+                WHERE t.status IN (?, ?)
+                ORDER BY COALESCE(t.closed_at, t.rejected_at) DESC, t.id DESC
+                LIMIT ?
+                """;
+
+        return jdbcTemplate.query(sql, recentActivityRowMapper,
+                TicketStatus.CLOSED.name(), TicketStatus.REJECTED.name(), limit);
     }
 
 }
