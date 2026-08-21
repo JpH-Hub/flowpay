@@ -222,3 +222,8 @@ Você pode simular os principais fluxos de exceção da API disparando as requis
 ## CI
 
 O pipeline no GitHub Actions executa testes unitários, testes de integração/E2E (com PostgreSQL) e gera o JAR da aplicação.
+
+## Monitoramento
+
+- GET /monitoring: retorna o histórico recente de tickets finalizados (status CLOSED ou REJECTED), ordenado do mais recente para o mais antigo. A resposta contém: id, chatRef, subject, status, agentName (pode ser null para REJECTED), teamName, closedAt, rejectedAt, rejectionReason. Por hora o endpoint retorna os últimos 20 registros.
+
