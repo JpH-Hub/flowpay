@@ -17,4 +17,8 @@ public class TicketDTO {
     private TicketStatus status;
     private String subject;
     private String entryDate;
+    private String startedAt;
+    private String closedAt;
+    private String rejectedAt;
+    private String rejectionReason;
 }

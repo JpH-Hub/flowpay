@@ -10,7 +10,7 @@ http:
     type: json
     data: |-
       {
-        "conversationRef": "WHATS-123",
+        "conversationRef": "313",
         "subject": "Preciso de ajuda com meu cartão de crédito"
       }
   auth: inherit

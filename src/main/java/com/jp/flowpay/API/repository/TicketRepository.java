@@ -31,17 +31,22 @@ public class TicketRepository {
         ticket.setTeamId(rs.getLong("team_id"));
 
         Long agentId = rs.getObject("agent_id") != null ? rs.getLong("agent_id") : null;
-        ticket.setAgentId(agentId);
 
+        ticket.setAgentId(agentId);
         ticket.setCreatedAt(rs.getObject("created_at", LocalDateTime.class));
+        ticket.setStartedAt(rs.getObject("started_at", LocalDateTime.class));
+        ticket.setClosedAt(rs.getObject("closed_at", LocalDateTime.class));
+        ticket.setRejectedAt(rs.getObject("rejected_at", LocalDateTime.class));
+        ticket.setRejectionReason(rs.getString("rejection_reason"));
+
         return ticket;
     };
 
     public Ticket save(Ticket ticket) {
         String sql = """
-            INSERT INTO tickets (conversation_ref, subject, status, team_id, agent_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """;
+                    INSERT INTO tickets (conversation_ref, subject, status, team_id, agent_id, created_at, started_at, rejected_at, rejection_reason)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -53,6 +58,9 @@ public class TicketRepository {
             ps.setLong(4, ticket.getTeamId());
             ps.setObject(5, ticket.getAgentId());
             ps.setObject(6, ticket.getCreatedAt() != null ? ticket.getCreatedAt() : LocalDateTime.now());
+            ps.setObject(7, ticket.getStartedAt());
+            ps.setObject(8, ticket.getRejectedAt());
+            ps.setString(9, ticket.getRejectionReason());
             return ps;
         }, keyHolder);
 
@@ -75,24 +83,14 @@ public class TicketRepository {
         return tickets.stream().findFirst();
     }
 
-    public List<Ticket> findAll() {
-        String sql = "SELECT * FROM tickets";
-        return jdbcTemplate.query(sql, ticketRowMapper);
-    }
-
     public void update(Ticket ticket) {
         String sql = """
-            UPDATE tickets 
-            SET status = ?, agent_id = ? 
-            WHERE id = ?
-        """;
-        jdbcTemplate.update(sql, ticket.getStatus().name(), ticket.getAgentId(), ticket.getId());
-    }
-
-    public int countByStatus(TicketStatus status) {
-        String sql = "SELECT COUNT(*) FROM tickets WHERE status = ?";
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, status.name());
-        return count != null ? count : 0;
+                    UPDATE tickets 
+                    SET status = ?, agent_id = ?, started_at = ?, closed_at = ?
+                    WHERE id = ?
+                """;
+        jdbcTemplate.update(sql, ticket.getStatus().name(), ticket.getAgentId(), ticket.getStartedAt(),
+                            ticket.getClosedAt(), ticket.getId());
     }
 
     public int countByStatusAndTeamId(TicketStatus status, Long teamId) {
@@ -103,12 +101,12 @@ public class TicketRepository {
 
     public Optional<Ticket> findOldestQueuedByTeamIdForUpdate(Long teamId) {
         String sql = """
-            SELECT * FROM tickets
-            WHERE team_id = ? AND status = ?
-            ORDER BY created_at ASC
-            LIMIT 1
-            FOR UPDATE
-            """;
+                SELECT * FROM tickets
+                WHERE team_id = ? AND status = ?
+                ORDER BY created_at ASC
+                LIMIT 1
+                FOR UPDATE
+                """;
 
         List<Ticket> tickets = jdbcTemplate.query(sql, ticketRowMapper, teamId, TicketStatus.QUEUED.name());
         return tickets.stream().findFirst();
@@ -122,6 +120,12 @@ public class TicketRepository {
     public List<Ticket> findByTeamIdAndStatus(Long teamId, TicketStatus status) {
         String sql = "SELECT * FROM tickets WHERE team_id = ? AND status = ? ORDER BY created_at ASC";
         return jdbcTemplate.query(sql, ticketRowMapper, teamId, status.name());
+    }
+
+    public boolean existsByConversationRef(String conversationRef) {
+        String sql = "SELECT COUNT(1) FROM tickets WHERE conversation_ref = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, conversationRef);
+        return count != null && count > 0;
     }
 
 }

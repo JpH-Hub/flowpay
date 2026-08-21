@@ -24,12 +24,6 @@ public class TeamRepository {
         return team;
     };
 
-    public Optional<Team> findById(Long id) {
-        String sql = "SELECT * FROM teams WHERE id = ?";
-        List<Team> teams = jdbcTemplate.query(sql, teamRowMapper, id);
-        return teams.stream().findFirst();
-    }
-
     public Optional<Team> findByNameIgnoreCase(String name) {
         String sql = "SELECT * FROM teams WHERE LOWER(name) = LOWER(?)";
         List<Team> teams = jdbcTemplate.query(sql, teamRowMapper, name);

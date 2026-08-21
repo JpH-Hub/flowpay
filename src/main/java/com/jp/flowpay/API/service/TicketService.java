@@ -8,6 +8,7 @@ import com.jp.flowpay.API.enums.TicketStatus;
 import com.jp.flowpay.API.exception.InvalidTicketStatusException;
 import com.jp.flowpay.API.exception.TeamNotFoundException;
 import com.jp.flowpay.API.exception.TicketNotFoundException;
+import com.jp.flowpay.API.exception.DuplicateTicketException; // <-- NOVA EXCEÇÃO
 import com.jp.flowpay.API.repository.AgentRepository;
 import com.jp.flowpay.API.repository.TeamRepository;
 import com.jp.flowpay.API.repository.TicketRepository;
@@ -41,6 +42,10 @@ public class TicketService {
 
     @Transactional
     public Ticket assignTicket(String conversationRef, String subject) {
+        if (ticketRepository.existsByConversationRef(conversationRef)) {
+            throw new DuplicateTicketException("Já existe um ticket ativo para a conversa: " + conversationRef);
+        }
+
         TeamEnum teamEnum = teamRoutingService.determineTeam(subject);
         Team team = teamRepository.findByNameIgnoreCase(teamEnum.getTeamName())
                 .orElseThrow(() -> new TeamNotFoundException(teamEnum.getTeamName()));
@@ -50,24 +55,21 @@ public class TicketService {
         Ticket ticket;
         if (availableAgent.isPresent()) {
             ticket = buildTicket(conversationRef, subject, TicketStatus.IN_SERVICE, team.getId(), availableAgent.get().getId());
+            ticket.setStartedAt(LocalDateTime.now());
         } else if (ticketRepository.countByStatusAndTeamId(TicketStatus.QUEUED, team.getId()) >= maxQueueSize) {
             ticket = buildTicket(conversationRef, subject, TicketStatus.REJECTED, team.getId(), null);
+            ticket.setRejectedAt(LocalDateTime.now());
+            ticket.setRejectionReason("QUEUE_FULL");
         } else {
             ticket = buildTicket(conversationRef, subject, TicketStatus.QUEUED, team.getId(), null);
         }
-
-
-        Ticket persistedTicket = ticketRepository.save(ticket);
-
-
-        persistedTicket.setTeamName(team.getName());
-
-        return persistedTicket;
+        return ticketRepository.save(ticket);
     }
 
     @Transactional
     public Ticket closeTicket(Long ticketId) {
-        Ticket ticket = ticketRepository.findByIdForUpdate(ticketId).orElseThrow(() -> new TicketNotFoundException(ticketId));
+        Ticket ticket = ticketRepository.findByIdForUpdate(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
         if (ticket.getStatus() != TicketStatus.IN_SERVICE && ticket.getStatus() != TicketStatus.QUEUED) {
             throw new InvalidTicketStatusException(ticket.getStatus(), "close");
@@ -77,6 +79,7 @@ public class TicketService {
         boolean wasInService = ticket.getStatus() == TicketStatus.IN_SERVICE;
 
         ticket.setStatus(TicketStatus.CLOSED);
+        ticket.setClosedAt(LocalDateTime.now());
         ticketRepository.update(ticket);
 
         if (wasInService) {
@@ -100,6 +103,7 @@ public class TicketService {
         Ticket ticket = queuedTicket.get();
         ticket.setStatus(TicketStatus.IN_SERVICE);
         ticket.setAgentId(availableAgent.get().getId());
+        ticket.setStartedAt(LocalDateTime.now());
         ticketRepository.update(ticket);
     }
 

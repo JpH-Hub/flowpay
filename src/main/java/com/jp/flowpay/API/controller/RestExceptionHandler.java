@@ -1,9 +1,9 @@
 package com.jp.flowpay.API.controller;
 
+import com.jp.flowpay.API.exception.DuplicateTicketException;
 import com.jp.flowpay.API.exception.InvalidTicketStatusException;
 import com.jp.flowpay.API.exception.TeamNotFoundException;
 import com.jp.flowpay.API.exception.TicketNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,12 +21,10 @@ public class RestExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
     }
 
-
     @ExceptionHandler(TicketNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleTicketNotFound(TicketNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
     }
-
 
     @ExceptionHandler(InvalidTicketStatusException.class)
     public ResponseEntity<Map<String, String>> handleInvalidStatus(InvalidTicketStatusException ex) {
@@ -42,14 +40,9 @@ public class RestExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
 
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        String message = ex.getMostSpecificCause().getMessage();
-        if (message != null && message.contains("conversation_ref")) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("error", "conversationRef already exists"));
-        }
+    @ExceptionHandler(DuplicateTicketException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateTicket(DuplicateTicketException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", "Data integrity violation"));
+                .body(Map.of("error", "conversationRef already exists"));
     }
 }
